@@ -32,24 +32,25 @@
   },
   "dependencies": {
     "@types/open": "^6.2.1",
-    "commander": "^2.20.0",
+    "commander": "^5.1.0",
     "gatsby-node-helpers": "^0.3.0",
-    "gatsby-source-filesystem": "^2.1.8",
-    "inquirer": "^6.5.0",
+    "gatsby-source-filesystem": "^2.2.5",
+    "inquirer": "^7.1.0",
     "node-fetch": "^2.6.0",
-    "open": "^6.4.0"
+    "open": "^7.0.3"
   },
   "devDependencies": {
     "@types/inquirer": "^6.5.0",
-    "@types/node": "^12.6.9",
-    "@types/node-fetch": "^2.5.0",
-    "@types/prettier": "^1.18.1",
-    "gatsby": "^2.13.51",
-    "prettier": "^1.18.2",
-    "tslint": "^5.18.0",
+    "@types/node": "^13.13.4",
+    "@types/node-fetch": "^2.5.7",
+    "@types/prettier": "^2.0.0",
+    "gatsby": "^2.20.36",
+    "prettier": "^2.0.5",
+    "react-dom": "^16.13.1",
+    "tslint": "^6.1.1",
     "tslint-config-prettier": "^1.18.0",
-    "tslint-plugin-prettier": "^2.0.1",
-    "typescript": "^3.5.3"
+    "tslint-plugin-prettier": "^2.3.0",
+    "typescript": "^3.8.3"
   },
   "peerDependencies": {
     "gatsby": "^2.10.8"
