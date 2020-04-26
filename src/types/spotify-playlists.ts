@@ -62,7 +62,7 @@ export interface Playlist {
   primary_color: null;
   public: boolean;
   snapshot_id: string;
-  tracks: PlaylistTrack[];
+  tracks: Track[];
   type: 'playlist';
   uri: string;
 }

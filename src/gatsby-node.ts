@@ -78,17 +78,17 @@ export const sourceNodes = async (
                 )
               : null,
           tracks: await Promise.all(
-            playlist.tracks.map(async (playlistTrack, index) => ({
+            playlist.tracks.map(async (track, index) => ({
               order: index,
-              ...playlistTrack.track,
-              artistString: generateArtistString(playlistTrack.track.artists),
+              ...track,
+              artistString: generateArtistString(track.artists),
               image:
-                playlistTrack.track.album &&
-                playlistTrack.track.album.images &&
-                playlistTrack.track.album.images.length
+                track.album &&
+                track.album.images &&
+                track.album.images.length
                   ? await referenceRemoteFile(
-                      playlistTrack.track.uri,
-                      playlistTrack.track.album.images[0].url,
+                      track.uri,
+                      track.album.images[0].url,
                       helpers,
                     )
                   : null,

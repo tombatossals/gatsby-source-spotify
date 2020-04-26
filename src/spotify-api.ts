@@ -92,8 +92,10 @@ export const getPlaylistTracks = async (
   }
 
   const result: PlaylistResponse = await response.json();
-
-  return result.items;
+  const tracks : Track[] = result.items.map(playlistTrack => ({
+    ...playlistTrack.track
+  }))
+  return tracks;
 };
 
 export const getPlaylists = async (accessToken: string, limit: number = 50) => {
