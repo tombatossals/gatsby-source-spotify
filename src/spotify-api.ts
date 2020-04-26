@@ -1,11 +1,13 @@
 import fetch from 'node-fetch';
 
 import { PluginOptions } from './gatsby-node';
-import { PlaylistsResponse } from './types/spotify-playlists';
-import { RecentResponse } from './types/spotify-recent';
+import {
+  PlaylistsResponse,
+  PlaylistResponse,
+  Playlist,
+} from './types/spotify-playlists';
+import { Track } from './types/spotify-track';
 import { TokenResponse } from './types/spotify-token';
-import { Artist, TopArtistsResponse } from './types/spotify-top-artists';
-import { TopTracksResponse, Track } from './types/spotify-top-tracks';
 
 export type Scope =
   | 'playlist-read-private'
@@ -71,15 +73,13 @@ export const getTokens = async (
   return (await response.json()) as TokenResponse;
 };
 
-const getTop = async (
+export const getPlaylistTracks = async (
   accessToken: string,
-  type: 'artists' | 'tracks',
-  timeRange: TimeRange = 'medium_term',
-  limit: number = 20,
+  playlistId: string,
+  limit: number = 100,
 ) => {
-  const url = new URL(`${SPOTIFY_API_URL}/me/top/${type}`);
-  url.searchParams.append('time_range', timeRange);
-  url.searchParams.append('limit', String(Math.min(limit, 50)));
+  const url = new URL(`${SPOTIFY_API_URL}/playlists/${playlistId}/tracks`);
+  url.searchParams.append('limit', String(Math.min(limit, 100)));
 
   const response = await fetch(String(url), {
     headers: {
@@ -88,14 +88,11 @@ const getTop = async (
   });
 
   if (!response.ok) {
-    throw new Error(
-      `[${url} / ${accessToken}] ${
-        response.statusText
-      }: ${await response.text()}`,
-    );
+    throw new Error(`${response.statusText}: ${await response.text()}`);
   }
 
-  const result: TopArtistsResponse | TopTracksResponse = await response.json();
+  const result: PlaylistResponse = await response.json();
+
   return result.items;
 };
 
@@ -114,37 +111,21 @@ export const getPlaylists = async (accessToken: string, limit: number = 50) => {
   }
 
   const result: PlaylistsResponse = await response.json();
-  return result.items;
-};
 
-export const getRecentTracks = async (
-  accessToken: string,
-  limit: number = 50,
-) => {
-  const url = new URL(`${SPOTIFY_API_URL}/me/player/recently-played`);
-  url.searchParams.append('limit', String(Math.min(limit, 50)));
+  const playlists: Playlist[] = await Promise.all(
+    result.items.map(async playlist => ({
+      ...playlist,
+      tracks: await getPlaylistTracks(accessToken, playlist.id),
+    })),
+  );
 
-  const response = await fetch(String(url), {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`${response.statusText}: ${await response.text()}`);
-  }
-
-  const result: RecentResponse = await response.json();
-  return result.items;
+  return playlists;
 };
 
 export const getUserData = async ({
   clientId,
   clientSecret,
   refreshToken,
-  timeRanges = ['short_term', 'medium_term', 'long_term'],
-  fetchPlaylists = true,
-  fetchRecent = true,
 }: PluginOptions) => {
   const { access_token } = await getTokens(
     clientId,
@@ -153,27 +134,9 @@ export const getUserData = async ({
     'refresh_token',
   );
 
-  const playlists = fetchPlaylists ? await getPlaylists(access_token) : [];
-  const recentTracks = fetchRecent ? await getRecentTracks(access_token) : [];
-
-  const artists = await Promise.all(
-    timeRanges.map(async t => {
-      const artists = (await getTop(access_token, 'artists', t)) as Artist[];
-      return artists.map(artist => ({ ...artist, time_range: t }));
-    }),
-  );
-
-  const tracks = await Promise.all(
-    timeRanges.map(async t => {
-      const tracks = (await getTop(access_token, 'tracks', t)) as Track[];
-      return tracks.map(track => ({ ...track, time_range: t }));
-    }),
-  );
+  const playlists = await getPlaylists(access_token);
 
   return {
     playlists,
-    recentTracks,
-    artists: [].concat(...artists) as (Artist & { time_range: TimeRange })[],
-    tracks: [].concat(...tracks) as (Track & { time_range: TimeRange })[],
   };
 };

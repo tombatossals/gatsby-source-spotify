@@ -1,7 +1,6 @@
-import { Artist as RecentArtist } from './types/spotify-recent';
-import { Artist } from './types/spotify-top-tracks';
+import { Artist } from './types/spotify-track';
 
-export const generateArtistString = (artists: Artist[] | RecentArtist[]) => {
+export const generateArtistString = (artists: Artist[]) => {
   if (artists.length === 1) {
     return artists[0].name;
   }
