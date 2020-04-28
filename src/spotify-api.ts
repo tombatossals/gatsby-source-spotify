@@ -79,6 +79,7 @@ export const getPlaylistTracks = async (
   limit: number = 100,
 ) => {
   const url = new URL(`${SPOTIFY_API_URL}/playlists/${playlistId}/tracks`);
+  url.searchParams.append('market', 'ES');
   url.searchParams.append('limit', String(Math.min(limit, 100)));
 
   const response = await fetch(String(url), {
@@ -92,7 +93,7 @@ export const getPlaylistTracks = async (
   }
 
   const result: PlaylistResponse = await response.json();
-  const tracks : Track[] = result.items.map(playlistTrack => ({
+  const tracks : Track[] = result.items.filter(t => t.track.preview_url).map(playlistTrack => ({
     ...playlistTrack.track
   }))
   return tracks;
