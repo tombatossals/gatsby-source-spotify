@@ -3,7 +3,9 @@ import fetch from 'node-fetch';
 
 import { generateArtistString } from './artist-list';
 import { PlaylistNode } from './nodes';
-import { getUserData, TimeRange } from './spotify-api';
+import { getUserData, TimeRange, getPlaylistTracks } from './spotify-api';
+import jimp from 'jimp';
+import fs from 'fs';
 
 export interface PluginOptions {
   // Auth
@@ -16,6 +18,10 @@ export interface PluginOptions {
   fetchPlaylists?: boolean;
   fetchRecent?: boolean;
 }
+
+const sleep = (milliseconds) => {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+};
 
 const referenceRemoteFile = async (
   id: string,
@@ -36,8 +42,9 @@ const referenceRemoteFile = async (
     return null;
   }
 
+  const buffer: Buffer = await testRes.buffer();
   const fileNode = await createFileNodeFromBuffer({
-    buffer: await testRes.buffer(),
+    buffer,
     store,
     cache,
     createNode,
@@ -46,9 +53,15 @@ const referenceRemoteFile = async (
     ext: '.jpg',
   });
 
-  if (fileNode) {
+  const image = await jimp.read(fileNode.absolutePath);
+  const pixelated = await image
+    .quality(10)
+    .pixelate(32)
+    .getBase64Async(jimp.MIME_JPEG);
+
+  if (fileNode && pixelated) {
     cache.set(url, fileNode.id);
-    return { localFile___NODE: fileNode.id };
+    return { localFile___NODE: fileNode.id, pixelated };
   }
 
   return null;
@@ -64,11 +77,28 @@ export const sourceNodes = async (
   const { playlists } = await getUserData(pluginOptions);
 
   await Promise.all([
-    ...playlists.map(async (playlist, index) => {
-      createNode(
+    ...playlists.map(async (playlist) => {
+      const tracks = [];
+
+      for (const t of playlist.tracks) {
+        const image = await referenceRemoteFile(
+          t.uri,
+          t.album.images[0].url,
+          helpers,
+        );
+        const track = {
+          ...t,
+          artist: generateArtistString(t.artists),
+          image,
+        };
+        if (track.image.pixelated) {
+          tracks.push(track);
+        }
+      }
+
+      await createNode(
         PlaylistNode({
           ...playlist,
-          order: index,
           image:
             playlist.images && playlist.images.length
               ? await referenceRemoteFile(
@@ -77,23 +107,7 @@ export const sourceNodes = async (
                   helpers,
                 )
               : null,
-          tracks: await Promise.all(
-            playlist.tracks.map(async (track, index) => ({
-              order: index,
-              ...track,
-              artistString: generateArtistString(track.artists),
-              image:
-                track.album &&
-                track.album.images &&
-                track.album.images.length
-                  ? await referenceRemoteFile(
-                      track.uri,
-                      track.album.images[0].url,
-                      helpers,
-                    )
-                  : null,
-            })),
-          ),
+          tracks: tracks,
         }),
       );
     }),
