@@ -5,3 +5,4 @@ const { createNodeFactory } = createNodeHelpers({
 });
 
 export const PlaylistNode = createNodeFactory('Playlist');
+export const TrackNode = createNodeFactory('Track');

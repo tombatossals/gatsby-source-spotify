@@ -2,7 +2,7 @@ import { createFileNodeFromBuffer } from 'gatsby-source-filesystem';
 import fetch from 'node-fetch';
 
 import { generateArtistString } from './artist-list';
-import { PlaylistNode } from './nodes';
+import { PlaylistNode, TrackNode } from './nodes';
 import { getUserData, TimeRange, getPlaylistTracks } from './spotify-api';
 import jimp from 'jimp';
 import fs from 'fs';
@@ -78,8 +78,6 @@ export const sourceNodes = async (
 
   await Promise.all([
     ...playlists.map(async (playlist) => {
-      const tracks = [];
-
       for (const t of playlist.tracks) {
         const image = await referenceRemoteFile(
           t.uri,
@@ -92,13 +90,19 @@ export const sourceNodes = async (
           image,
         };
         if (track.image.pixelated) {
-          tracks.push(track);
+          await createNode(
+            TrackNode({
+              ...track,
+              playlist: playlist.id,
+            }),
+          );
         }
       }
 
       await createNode(
         PlaylistNode({
           ...playlist,
+          tracks: playlist.tracks.length,
           image:
             playlist.images && playlist.images.length
               ? await referenceRemoteFile(
@@ -107,7 +111,6 @@ export const sourceNodes = async (
                   helpers,
                 )
               : null,
-          tracks: tracks,
         }),
       );
     }),
