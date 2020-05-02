@@ -2,7 +2,6 @@ import { createFileNodeFromBuffer } from 'gatsby-source-filesystem';
 import fetch from 'node-fetch';
 
 import { generateArtistString } from './artist-list';
-import { PlaylistNode, TrackNode } from './nodes';
 import { getUserData, TimeRange, getPlaylistTracks } from './spotify-api';
 import jimp from 'jimp';
 import fs from 'fs';
@@ -18,10 +17,6 @@ export interface PluginOptions {
   fetchPlaylists?: boolean;
   fetchRecent?: boolean;
 }
-
-const sleep = (milliseconds) => {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-};
 
 const referenceRemoteFile = async (
   id: string,
@@ -68,16 +63,47 @@ const referenceRemoteFile = async (
 };
 
 export const sourceNodes = async (
-  { actions, createNodeId, store, cache },
+  { actions, createNodeId, createContentDigest, store, cache },
   pluginOptions: PluginOptions,
 ) => {
   const { createNode, touchNode } = actions;
-  const helpers = { cache, createNode, createNodeId, store, touchNode };
+  const helpers = {
+    cache,
+    createNode,
+    createNodeId,
+    store,
+    touchNode,
+  };
 
   const { playlists } = await getUserData(pluginOptions);
 
   await Promise.all([
     ...playlists.map(async (playlist) => {
+      const playlistData = {
+        ...playlist,
+        spotifyId: playlist.id,
+        tracks: playlist.tracks.length,
+        image: await referenceRemoteFile(
+          playlist.uri,
+          playlist.images[0].url,
+          helpers,
+        ),
+      };
+
+      const metadata = {
+        id: createNodeId(`playlist-${playlist.id}`),
+        parent: null,
+        children: [],
+        internal: {
+          type: `SpotifyPlaylist`,
+          content: JSON.stringify(playlistData),
+          contentDigest: createContentDigest(playlistData),
+        },
+      };
+
+      const playlistNode = Object.assign({}, playlistData, metadata);
+      await createNode(playlistNode);
+
       for (const t of playlist.tracks) {
         const image = await referenceRemoteFile(
           t.uri,
@@ -87,32 +113,25 @@ export const sourceNodes = async (
         const track = {
           ...t,
           artist: generateArtistString(t.artists),
+          playlistId: playlist.id,
           image,
         };
         if (track.image.pixelated) {
-          await createNode(
-            TrackNode({
-              ...track,
-              playlist: playlist.id,
-            }),
-          );
+          const metadata = {
+            id: createNodeId(`track-${track.id}`),
+            parent: playlistNode.id,
+            children: [],
+            internal: {
+              type: `SpotifyTrack`,
+              content: JSON.stringify(track),
+              contentDigest: createContentDigest(track),
+            },
+          };
+
+          const node = Object.assign({}, track, metadata);
+          await createNode(node);
         }
       }
-
-      await createNode(
-        PlaylistNode({
-          ...playlist,
-          tracks: playlist.tracks.length,
-          image:
-            playlist.images && playlist.images.length
-              ? await referenceRemoteFile(
-                  playlist.uri,
-                  playlist.images[0].url,
-                  helpers,
-                )
-              : null,
-        }),
-      );
     }),
   ]);
 
