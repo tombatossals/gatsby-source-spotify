@@ -114,6 +114,7 @@ export const sourceNodes = async (
           ...t,
           artist: generateArtistString(t.artists),
           playlistId: playlist.id,
+          spotifyId: t.uri.replace('spotify:track:', ''),
           image,
         };
         if (track.image.pixelated) {
